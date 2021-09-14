@@ -16,6 +16,10 @@ const controls = {
   'Load Scene': loadScene, // A function pointer, essentially
 };
 
+const palette = {
+  Color: [ 0, 128, 255 ]
+};
+
 let icosphere: Icosphere;
 let square: Square;
 let cube: Cube;
@@ -24,8 +28,8 @@ let prevTesselations: number = 5;
 function loadScene() {
   //icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
   //icosphere.create();
-  square = new Square(vec3.fromValues(0, 0, 0));
-  square.create();
+  //square = new Square(vec3.fromValues(0, 0, 0));
+  //square.create();
   cube = new Cube(vec3.fromValues(0, 0, 0));
   cube.create();
 }
@@ -43,6 +47,7 @@ function main() {
   const gui = new DAT.GUI();
   gui.add(controls, 'tesselations', 0, 8).step(1);
   gui.add(controls, 'Load Scene');
+  gui.addColor(palette, 'Color');
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
