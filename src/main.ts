@@ -17,7 +17,7 @@ const controls = {
 };
 
 const palette = {
-  Color: [ 0, 128, 255 ]
+  color: [ 0, 128, 255 ]
 };
 
 let icosphere: Icosphere;
@@ -47,7 +47,7 @@ function main() {
   const gui = new DAT.GUI();
   gui.add(controls, 'tesselations', 0, 8).step(1);
   gui.add(controls, 'Load Scene');
-  gui.addColor(palette, 'Color');
+  gui.addColor(palette, 'color');
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
