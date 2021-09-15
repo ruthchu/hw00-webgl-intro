@@ -1,7 +1,7 @@
 # HW 0: Noisy Planet Part 1 (Intro to Javascript and WebGL)
 
 ## Description of project
-6 sides of a cube start very far out and come together to interlock in a cube shape, staying there for a few seconds, before clipping past each other and flying back out. This is achieved by using a tangent function to modify the position of the sides by their normal vector, as well as a sine wave that has the same period, to ensure the sides stay together in the middle for a little bit.
+Six sides of a cube start very far out and come together to interlock in a cube shape, staying there for a few seconds, before clipping past each other and flying back out. This is achieved by using a tangent function to modify the position of the sides by their normal vector, as well as a sine wave that has the same period, to ensure the sides stay together in the middle for a little bit.
 
 As the sides come closer and closer, they start white, but begin to rapidly develop spots of the selected color, as well as black, before transitioning into a psychedelic red-green-blue static. At the same time, fbm noise at a very high octave was used to create this black sort of staticky, oscillating effect when the cube is at a standstill.
 
