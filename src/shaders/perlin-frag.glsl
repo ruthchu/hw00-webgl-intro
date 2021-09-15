@@ -14,10 +14,8 @@ precision highp float;
 uniform vec4 u_Color; // The color with which to render this instance of geometry.
 uniform highp float u_Time;
 
-
 // These are the interpolated values out of the rasterizer, so you can't know
 // their specific values without knowing the vertices that contributed to them
-//in vec4 fs_Pos;
 
 in vec4 fs_Pos;
 in vec4 fs_Nor;
@@ -36,5 +34,6 @@ void main()
     // Material base color (before shading)
     vec4 diffuseColor = u_Color;
     // Compute final shaded color
-    out_Col = vec4(1, 0, 0, 0);
+    float noiseVal = rand(vec3(fs_Pos));
+    out_Col = vec4(vec3(noiseVal), 1.0);
 }
