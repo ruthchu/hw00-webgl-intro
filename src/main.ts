@@ -73,6 +73,11 @@ function main() {
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/lambert-frag.glsl')),
   ]);
 
+  const perlin = new ShaderProgram([
+    new Shader(gl.VERTEX_SHADER, require('./shaders/perlin-vert.glsl')),
+    new Shader(gl.FRAGMENT_SHADER, require('./shaders/perlin-frag.glsl')),
+  ])
+
   // This function will be called every frame
   function tick() {
     camera.update();
@@ -86,7 +91,7 @@ function main() {
       icosphere.create();
     }
 
-    renderer.render(camera, lambert, [
+    renderer.render(camera, perlin, [
       //icosphere,
       //square,
       cube,
