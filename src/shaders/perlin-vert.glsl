@@ -48,13 +48,13 @@ void main()
                                                             // perpendicular to the surface after the surface is transformed by
                                                             // the model matrix.
 
-
     vec4 modelposition = u_Model * vs_Pos;   // Temporarily store the transformed vertex positions for use below
-    float move = sin(u_Time * .02);
-    if (move > 0.) {
+    
+    float move = sin(u_Time * .02);          // Used to make the box move every other period
+    
+    if (move > 0.) {                         // Moves the sides of the box in the normal direction using a tangent function
         modelposition += tan(u_Time * .02) * fs_Nor; 
     }
-
 
     fs_LightVec = lightPos - modelposition;  // Compute the direction in which the light source lies
 

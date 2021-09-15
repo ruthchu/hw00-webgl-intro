@@ -25,6 +25,8 @@ in vec4 fs_Col;
 out vec4 out_Col; // This is the final output color that you will see on your
                   // screen for the pixel that is currently being processed.
 
+// Pseudorandom output modified from https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
+// Outputs red, green, or blue, based on which value is the largest
 vec3 rand(vec3 co){
     float a = fract(sin(dot(co, vec3(12.9898, 78.233, 34.252))) * 43758.5453);
     float b = fract(sin(dot(co, vec3(78.233, 34.252, 12.9898))) * 43758.5453);
@@ -39,7 +41,7 @@ vec3 rand(vec3 co){
     return vec3(a, b, c);
 }
 
-// Taken from cis460 noise
+// Taken from cis460 sky shader (not sure where it came from originally)
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 
@@ -112,6 +114,7 @@ float snoise(vec3 v){
                                   dot(p2,x2), dot(p3,x3) ) );
 }
 
+// Self-written referencing noise 2021 slide deck. https://cis566-procedural-graphics.github.io/noise-2021.pdf
 float fbm(float nOctaves, vec3 pos) {
     float total = 0.;
     float persistence = 1.f / 2.f;
@@ -130,21 +133,28 @@ void main()
     // Material base color (before shading)
     vec4 diffuseColor = u_Color;
 
+    // Helps to determine scaling factor for rate the colors change
     float rampUp = .5 / tan(u_Time * .02);
 
+    // To keep track of when the cube is formed vs moving
     float flash = sin(u_Time * .02);
+    
+    // random red, blue, or green based on position
     vec3 flashColor = rand(vec3(fs_Pos));
 
     if (flash < 0.0 ) { // Color when the sides of the box are "still"
-    //fbm that is of small octave and flashes through the color wheel
+        // Flashes through very high octave fbm
         float stopFlash = fbm(50.0, vec3((fs_Pos.xy * u_Time), fs_Pos.z));
         out_Col = vec4(vec3(stopFlash) * flashColor, 1.0);
     }
     else { // Color when the sides of the box are moving
-        float perlinNoise = fbm(50.0, vec3(fs_Pos) * rampUp);
-        vec3  perlinSmooth = vec3(smoothstep(-1., 1., perlinNoise));
+        // Modify noise in relation to movement of object
+        float fbmBase = fbm(50.0, vec3(fs_Pos) * rampUp);
+        vec3  fbmRemap = vec3(smoothstep(-1., 1., fbmBase));
+
+        // Modify base color in relation to movement of object
         diffuseColor *= (1.0 - smoothstep(0., 1., flash));
-        diffuseColor =  mix(diffuseColor, vec4(flashColor, 1.0), smoothstep(-1., 0., rampUp));
-        out_Col = vec4(perlinSmooth, 1.0) * diffuseColor;
+        diffuseColor =  mix(diffuseColor, vec4(flashColor, 1.0), 1. - smoothstep(0., 1., flash));
+        out_Col = vec4(fbmRemap, 1.0) * diffuseColor;
     }
 }
