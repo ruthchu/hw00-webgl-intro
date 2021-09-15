@@ -25,6 +25,20 @@ in vec4 fs_Col;
 out vec4 out_Col; // This is the final output color that you will see on your
                   // screen for the pixel that is currently being processed.
 
+vec3 rand(vec3 co){
+    float a = fract(sin(dot(co, vec3(12.9898, 78.233, 34.252))) * 43758.5453);
+    float b = fract(sin(dot(co, vec3(78.233, 34.252, 12.9898))) * 43758.5453);
+    float c = fract(sin(dot(co, vec3(34.252, 78.233, 12.9898))) * 43758.5453);
+    if (a > b && a > c) {
+        return vec3(1.0, 0.0, 0.0);
+    } else if (b > a && b > c) {
+        return vec3(0.0, 1.0, 0.0);
+    } else if (c > b && c > a) {
+        return vec3(0.0, 0.0, 1.0);
+    }
+    return vec3(a, b, c);
+}
+
 // Taken from cis460 noise
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
@@ -119,11 +133,18 @@ void main()
     float rampUp = .5 / tan(u_Time * .02);
 
     float flash = sin(u_Time * .02);
+    vec3 flashColor = rand(vec3(fs_Pos));
+
     if (flash < 0.0 ) { // Color when the sides of the box are "still"
-        out_Col = vec4(1.0);
+    //fbm that is of small octave and flashes through the color wheel
+        float stopFlash = fbm(50.0, vec3((fs_Pos.xy * u_Time), fs_Pos.z));
+        out_Col = vec4(vec3(stopFlash) * flashColor, 1.0);
     }
     else { // Color when the sides of the box are moving
-        float perlinNoise = fbm(10.0, vec3(fs_Pos) * rampUp);
-    out_Col = vec4(vec3(smoothstep(-1., 1., perlinNoise)), 1.0);
+        float perlinNoise = fbm(50.0, vec3(fs_Pos) * rampUp);
+        vec3  perlinSmooth = vec3(smoothstep(-1., 1., perlinNoise));
+        diffuseColor *= (1.0 - smoothstep(0., 1., flash));
+        diffuseColor =  mix(diffuseColor, vec4(flashColor, 1.0), smoothstep(-1., 0., rampUp));
+        out_Col = vec4(perlinSmooth, 1.0) * diffuseColor;
     }
 }
