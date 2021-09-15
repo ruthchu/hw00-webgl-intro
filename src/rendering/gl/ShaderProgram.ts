@@ -79,18 +79,18 @@ class ShaderProgram {
       gl.uniformMatrix4fv(this.unifViewProj, false, vp);
     }
   }
+  
+  setTick(tick: number) {
+    this.use();
+    if (this.unifTick !== -1) {
+      gl.uniform1f(this.unifTick, tick);
+    }
+  }
 
   setGeometryColor(color: vec4) {
     this.use();
     if (this.unifColor !== -1) {
       gl.uniform4fv(this.unifColor, color);
-    }
-  }
-
-  setTick(tick: number) {
-    this.use();
-    if (this.unifTick !== -1) {
-      gl.uniform1f(this.unifTick, tick);
     }
   }
 

@@ -96,7 +96,10 @@ function main() {
       //icosphere,
       //square,
       cube,
-    ], vec4.fromValues(palette.color[0] / 255., palette.color[1] / 255., palette.color[2] / 255., 1), u_tick);
+    ], vec4.fromValues(palette.color[0] / 255., 
+      palette.color[1] / 255., 
+      palette.color[2] / 255., 1), 
+      u_tick);
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
