@@ -1,4 +1,4 @@
-import {vec3} from 'gl-matrix';
+import {vec3, vec4} from 'gl-matrix';
 const Stats = require('stats-js');
 import * as DAT from 'dat.gui';
 import Icosphere from './geometry/Icosphere';
@@ -85,11 +85,12 @@ function main() {
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
+
     renderer.render(camera, lambert, [
       //icosphere,
       //square,
       cube,
-    ]);
+    ], vec4.fromValues(palette.color[0] / 255., palette.color[1] / 255., palette.color[2] / 255., 1));
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
