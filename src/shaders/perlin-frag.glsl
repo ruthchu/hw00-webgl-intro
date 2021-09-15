@@ -115,8 +115,15 @@ void main()
 {
     // Material base color (before shading)
     vec4 diffuseColor = u_Color;
-    // Compute final shaded color
-    float noiseVal = snoise(vec3(fs_Pos));
-    float perlinNoise = fbm(10.0, vec3(fs_Pos));
+
+    float rampUp = .5 / tan(u_Time * .02);
+
+    float flash = sin(u_Time * .02);
+    if (flash < 0.0 ) { // Color when the sides of the box are "still"
+        out_Col = vec4(1.0);
+    }
+    else { // Color when the sides of the box are moving
+        float perlinNoise = fbm(10.0, vec3(fs_Pos) * rampUp);
     out_Col = vec4(vec3(smoothstep(-1., 1., perlinNoise)), 1.0);
+    }
 }
