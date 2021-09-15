@@ -24,6 +24,7 @@ let icosphere: Icosphere;
 let square: Square;
 let cube: Cube;
 let prevTesselations: number = 5;
+let u_tick = 0;
 
 function loadScene() {
   //icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
@@ -80,6 +81,7 @@ function main() {
 
   // This function will be called every frame
   function tick() {
+    u_tick++;
     camera.update();
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
@@ -90,12 +92,11 @@ function main() {
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
-
     renderer.render(camera, perlin, [
       //icosphere,
       //square,
       cube,
-    ], vec4.fromValues(palette.color[0] / 255., palette.color[1] / 255., palette.color[2] / 255., 1));
+    ], vec4.fromValues(palette.color[0] / 255., palette.color[1] / 255., palette.color[2] / 255., 1), u_tick);
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
