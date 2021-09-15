@@ -24,7 +24,7 @@ let icosphere: Icosphere;
 let square: Square;
 let cube: Cube;
 let prevTesselations: number = 5;
-let u_tick = 0;
+let u_tick: number = 0.0;
 
 function loadScene() {
   //icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);

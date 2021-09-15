@@ -26,14 +26,14 @@ class OpenGLRenderer {
      u_color: vec4, u_time: number ) {
     let model = mat4.create();
     let viewProj = mat4.create();
-    let tick = u_time;
+    let time = u_time;
     let color = u_color;
 
     mat4.identity(model);
     mat4.multiply(viewProj, camera.projectionMatrix, camera.viewMatrix);
     prog.setModelMatrix(model);
     prog.setViewProjMatrix(viewProj);
-    prog.setTick(tick);
+    prog.setTime(time);
     prog.setGeometryColor(color);
 
     for (let drawable of drawables) {
