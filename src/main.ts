@@ -23,16 +23,16 @@ const palette = {
 let icosphere: Icosphere;
 let square: Square;
 let cube: Cube;
-let prevTesselations: number = 5;
+let prevTesselations: number = 6;
 let u_tick: number = 0.0;
 
 function loadScene() {
-  //icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
-  //icosphere.create();
+  icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
+  icosphere.create();
   //square = new Square(vec3.fromValues(0, 0, 0));
   //square.create();
-  cube = new Cube(vec3.fromValues(0, 0, 0));
-  cube.create();
+  //cube = new Cube(vec3.fromValues(0, 0, 0));
+  //cube.create();
 }
 
 function main() {
@@ -79,6 +79,11 @@ function main() {
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/perlin-frag.glsl')),
   ])
 
+  const planet = new ShaderProgram([
+    new Shader(gl.VERTEX_SHADER, require('./shaders/planet-vert.glsl')),
+    new Shader(gl.FRAGMENT_SHADER, require('./shaders/planet-frag.glsl')),
+  ])
+
   // This function will be called every frame
   function tick() {
     u_tick++;
@@ -92,10 +97,10 @@ function main() {
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
-    renderer.render(camera, perlin, [
-      //icosphere,
+    renderer.render(camera, planet, [
+      icosphere,
       //square,
-      cube,
+      //cube,
     ], vec4.fromValues(palette.color[0] / 255., 
       palette.color[1] / 255., 
       palette.color[2] / 255., 1), 
