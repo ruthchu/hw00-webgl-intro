@@ -132,6 +132,15 @@ void main()
 {
     // Material base color (before shading)
     vec4 diffuseColor = u_Color;
+    float baseNoise = (fbm(10.0, vec3(fs_Pos)) + 1.338) / 2.638; // fbm mapped from 0 to 1
+    if (baseNoise < 0.5) {
+        diffuseColor = vec4(102.0, 207.0, 255.0, 255.0) / 255.0;
+    }
+    else if (baseNoise > 0.5 && baseNoise < .6) {
+        diffuseColor = vec4(240.0, 143.0, 255., 255.0) / 255.0;
+    }
+    else {
+        diffuseColor = vec4(189.0, 112.0, 230.0, 255.0) / 255.0;
+    }
     out_Col = diffuseColor;
-    
 }
