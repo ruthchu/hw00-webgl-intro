@@ -22,24 +22,11 @@ in vec4 fs_Nor;
 in vec4 fs_LightVec;
 in vec4 fs_Col;
 
+in float h;
+
 out vec4 out_Col; // This is the final output color that you will see on your
                   // screen for the pixel that is currently being processed.
 
-// Pseudorandom output modified from https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
-// Outputs red, green, or blue, based on which value is the largest
-vec3 rand(vec3 co){
-    float a = fract(sin(dot(co, vec3(12.9898, 78.233, 34.252))) * 43758.5453);
-    float b = fract(sin(dot(co, vec3(78.233, 34.252, 12.9898))) * 43758.5453);
-    float c = fract(sin(dot(co, vec3(34.252, 78.233, 12.9898))) * 43758.5453);
-    if (a > b && a > c) {
-        return vec3(1.0, 0.0, 0.0);
-    } else if (b > a && b > c) {
-        return vec3(0.0, 1.0, 0.0);
-    } else if (c > b && c > a) {
-        return vec3(0.0, 0.0, 1.0);
-    }
-    return vec3(a, b, c);
-}
 
 // Taken from cis460 sky shader (not sure where it came from originally)
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
@@ -128,8 +115,60 @@ float fbm(float nOctaves, vec3 pos) {
     return total;
 }
 
+
+float bias(float time, float bias)
+{
+  return (time / ((((1.0/bias) - 2.0)*(1.0 - time))+1.0));
+}
+
+
+
+float gain(float time, float gain)
+{
+  if (time < 0.5) {
+    return bias(time * 2.0,gain)/2.0;
+  }
+  else {
+    return bias(time * 2.0 - 1.0,1.0 - gain)/2.0 + 0.5;
+  }
+}
+
+
+float height(vec3 value) 
+{
+    // noise range is -1.338 to 1.3
+    float baseNoise = (fbm(7.0, value) + 1.338) / 2.638; // fbm mapped from 0 to 1
+    baseNoise = gain(baseNoise, .8); // adds more flat land
+    float noiseVal = clamp(baseNoise, .5, 1.0); // takes everything below .5 and clamps it flat (water)
+
+    if (noiseVal > .55 && noiseVal < .65) {
+        noiseVal += abs(sin((noiseVal) / 100.0));
+    }
+    return noiseVal;
+}
+
+const float DELTA = 1e-4;
+
 void main()
 {
+    
+
+    vec3 mid_Nor = fs_Nor.xyz;
+    vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), vec3(mid_Nor)));
+    vec3 bitangent = cross(vec3(mid_Nor), tangent);
+
+    float px = height(fs_Pos.xyz + DELTA * tangent);
+    float nx = height(fs_Pos.xyz - DELTA * tangent);
+    float py = height(fs_Pos.xyz + DELTA * bitangent);
+    float ny = height(fs_Pos.xyz - DELTA * bitangent);
+
+    vec3 p1 = fs_Pos.xyz + DELTA * tangent + px * mid_Nor.xyz;
+    vec3 p2 = fs_Pos.xyz + DELTA * bitangent + py * mid_Nor.xyz;
+    vec3 p3 = fs_Pos.xyz - DELTA * tangent + nx * mid_Nor.xyz;
+    vec3 p4 = fs_Pos.xyz - DELTA * bitangent + ny * mid_Nor.xyz;
+
+    vec4 final_Nor = vec4(normalize(cross(normalize(p1 - p3), normalize(p2 - p4))), 0.0);
+
     // Material base color (before shading)
     vec4 diffuseColor = u_Color;
     float baseNoise = (fbm(10.0, vec3(fs_Pos)) + 1.338) / 2.638; // fbm mapped from 0 to 1
@@ -142,5 +181,19 @@ void main()
     else {
         diffuseColor = vec4(189.0, 112.0, 230.0, 255.0) / 255.0;
     }
-    out_Col = diffuseColor;
+    //out_Col = diffuseColor;
+
+    float diffuseTerm = dot(normalize(final_Nor), normalize(fs_LightVec));
+        // Avoid negative lighting values
+        // diffuseTerm = clamp(diffuseTerm, 0, 1);
+
+        float ambientTerm = 0.2;
+
+        float lightIntensity = diffuseTerm + ambientTerm;   //Add a small float value to the color multiplier
+                                                            //to simulate ambient lighting. This ensures that faces that are not
+                                                            //lit by our point light are not completely black.
+
+        // Compute final shaded color
+        out_Col = vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a);//vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a);
+        
 }

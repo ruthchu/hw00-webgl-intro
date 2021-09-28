@@ -33,6 +33,8 @@ out vec4 fs_Nor;            // The array of normals that has been transformed by
 out vec4 fs_LightVec;       // The direction in which our virtual light lies, relative to each vertex. This is implicitly passed to the fragment shader.
 out vec4 fs_Col;            // The color of each vertex. This is implicitly passed to the fragment shader.
 
+out float h;
+
 const vec4 lightPos = vec4(5, 5, 3, 1); //The position of our virtual light, which is used to compute the shading of
                                         //the geometry in the fragment shader.
 
@@ -154,28 +156,37 @@ float gain(float time, float gain)
   }
 }
 
-void main()
+float height(vec3 value) 
 {
-    fs_Col = vs_Col;                         // Pass the vertex colors to the fragment shader for interpolation
-    fs_Pos = vs_Pos;
-
-    mat3 invTranspose = mat3(u_ModelInvTr);
-    fs_Nor = vec4(invTranspose * vec3(vs_Nor), 0);          // Pass the vertex normals to the fragment shader for interpolation.
-                                                            // Transform the geometry's normals by the inverse transpose of the
-                                                            // model matrix. This is necessary to ensure the normals remain
-                                                            // perpendicular to the surface after the surface is transformed by
-                                                            // the model matrix.
-    
- // noise range is -1.338 to 1.3
-    float baseNoise = (fbm(10.0, vec3(fs_Pos)) + 1.338) / 2.638; // fbm mapped from 0 to 1
+    // noise range is -1.338 to 1.3
+    float baseNoise = (fbm(7.0, value) + 1.338) / 2.638; // fbm mapped from 0 to 1
     baseNoise = gain(baseNoise, .8); // adds more flat land
     float noiseVal = clamp(baseNoise, .5, 1.0); // takes everything below .5 and clamps it flat (water)
 
     if (noiseVal > .55 && noiseVal < .65) {
         noiseVal += abs(sin((noiseVal) / 100.0));
     }
+    return noiseVal;
+}
+
+void main()
+{
+    fs_Col = vs_Col;                         // Pass the vertex colors to the fragment shader for interpolation
+    fs_Pos = vs_Pos;
+    fs_Nor = vs_Nor;
+
+    mat3 invTranspose = mat3(u_ModelInvTr);
+    vec4 mid_Nor = vec4(invTranspose * vec3(vs_Nor), 0);          // Pass the vertex normals to the fragment shader for interpolation.
+                                                            // Transform the geometry's normals by the inverse transpose of the
+                                                            // model matrix. This is necessary to ensure the normals remain
+                                                            // perpendicular to the surface after the surface is transformed by
+                                                            // the model matrix.
     
-    vec4 noisedPos = noiseVal * fs_Nor;
+ 
+    float noiseHeight = height(vec3(fs_Pos));
+    h = noiseHeight;
+
+    vec4 noisedPos = noiseHeight * mid_Nor;
     vec4 modelposition = u_Model * vs_Pos;   // Temporarily store the transformed vertex positions for use below
     modelposition += noisedPos;
 
@@ -183,4 +194,13 @@ void main()
 
     gl_Position = u_ViewProj * modelposition;// gl_Position is a built-in variable of OpenGL which is
                                              // used to render the final positions of the geometry's vertices
+    
+//Get the tangent by calculating cross(vec(0,1,0), normal) (this works because our planet is a sphere)
+//Get the bitangent by calculating cross(normal, tangent)
+//Get the point p1 by f(point + alpha * tangent) (where point is the UN-deformed point on the sphere, and alpha is some sufficiently small value)
+//Get the point p2 by f(point + alpha * bitangent)
+//Get the point p3 by f(point - alpha * tangent)
+//Get the point p4 by f(point - alpha * bitangent)
+//Get your new normal by calculating cross(p2 - p4, p1 - p3) (might need to negate)
+
 }

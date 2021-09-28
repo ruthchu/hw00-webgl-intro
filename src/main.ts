@@ -29,8 +29,8 @@ let u_tick: number = 0.0;
 function loadScene() {
   icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
   icosphere.create();
-  //square = new Square(vec3.fromValues(0, 0, 0));
-  //square.create();
+  square = new Square(vec3.fromValues(0, 0, 0));
+  square.create();
   //cube = new Cube(vec3.fromValues(0, 0, 0));
   //cube.create();
 }
@@ -84,12 +84,19 @@ function main() {
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/planet-frag.glsl')),
   ])
 
+  const raymarch = new ShaderProgram([
+    new Shader(gl.VERTEX_SHADER, require('./shaders/raymarch-vert.glsl')),
+    new Shader(gl.FRAGMENT_SHADER, require('./shaders/raymarch-frag.glsl')),
+  ])
+
   // This function will be called every frame
   function tick() {
     u_tick++;
     camera.update();
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
     renderer.clear();
     if(controls.tesselations != prevTesselations)
     {
@@ -105,6 +112,15 @@ function main() {
       palette.color[1] / 255., 
       palette.color[2] / 255., 1), 
       u_tick);
+    //xrenderer.render(camera, raymarch, [
+    //x  //icosphere,
+    //x  square,
+    //x  //cube,
+    //x], vec4.fromValues(palette.color[0] / 255., 
+    //x  palette.color[1] / 255., 
+    //x  palette.color[2] / 255., 1), 
+    //x  u_tick);
+
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
