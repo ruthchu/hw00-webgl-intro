@@ -112,14 +112,14 @@ function main() {
       palette.color[1] / 255., 
       palette.color[2] / 255., 1), 
       u_tick);
-    //xrenderer.render(camera, raymarch, [
-    //x  //icosphere,
-    //x  square,
-    //x  //cube,
-    //x], vec4.fromValues(palette.color[0] / 255., 
-    //x  palette.color[1] / 255., 
-    //x  palette.color[2] / 255., 1), 
-    //x  u_tick);
+    //renderer.render(camera, raymarch, [
+    //  //icosphere,
+    //  square,
+    //  //cube,
+    //], vec4.fromValues(palette.color[0] / 255., 
+    //  palette.color[1] / 255., 
+    //  palette.color[2] / 255., 1), 
+    //  u_tick);
 
     stats.end();
 

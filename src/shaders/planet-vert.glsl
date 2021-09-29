@@ -38,22 +38,6 @@ out float h;
 const vec4 lightPos = vec4(5, 5, 3, 1); //The position of our virtual light, which is used to compute the shading of
                                         //the geometry in the fragment shader.
 
-// Pseudorandom output modified from https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
-// Outputs red, green, or blue, based on which value is the largest
-vec3 rand(vec3 co){
-    float a = fract(sin(dot(co, vec3(12.9898, 78.233, 34.252))) * 43758.5453);
-    float b = fract(sin(dot(co, vec3(78.233, 34.252, 12.9898))) * 43758.5453);
-    float c = fract(sin(dot(co, vec3(34.252, 78.233, 12.9898))) * 43758.5453);
-    if (a > b && a > c) {
-        return vec3(1.0, 0.0, 0.0);
-    } else if (b > a && b > c) {
-        return vec3(0.0, 1.0, 0.0);
-    } else if (c > b && c > a) {
-        return vec3(0.0, 0.0, 1.0);
-    }
-    return vec3(a, b, c);
-}
-
 // Taken from cis460 sky shader (not sure where it came from originally)
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
@@ -156,15 +140,26 @@ float gain(float time, float gain)
   }
 }
 
+float waterNoise()
+{
+    float modTime = u_Time * .001;
+    float waveNoise = snoise(vec3(fs_Pos.x + sin(modTime), fs_Pos.y + sin(modTime), fs_Pos.z + sin(modTime)) * 10.0);
+    return .01 * waveNoise;
+}
+
+float easeInQuint(float x)
+{
+    return x * x * x * x * x;
+}
+
 float height(vec3 value) 
 {
     // noise range is -1.338 to 1.3
     float baseNoise = (fbm(7.0, value) + 1.338) / 2.638; // fbm mapped from 0 to 1
-    baseNoise = gain(baseNoise, .8); // adds more flat land
+    baseNoise = gain(baseNoise, .8); // makes the peaks more dramatic
     float noiseVal = clamp(baseNoise, .5, 1.0); // takes everything below .5 and clamps it flat (water)
-
-    if (noiseVal > .55 && noiseVal < .65) {
-        noiseVal += abs(sin((noiseVal) / 100.0));
+    if (noiseVal > .5 && noiseVal < .525) {
+        noiseVal = mix(.5, .525, easeInQuint(smoothstep(.5, .525, noiseVal)));
     }
     return noiseVal;
 }
@@ -194,13 +189,4 @@ void main()
 
     gl_Position = u_ViewProj * modelposition;// gl_Position is a built-in variable of OpenGL which is
                                              // used to render the final positions of the geometry's vertices
-    
-//Get the tangent by calculating cross(vec(0,1,0), normal) (this works because our planet is a sphere)
-//Get the bitangent by calculating cross(normal, tangent)
-//Get the point p1 by f(point + alpha * tangent) (where point is the UN-deformed point on the sphere, and alpha is some sufficiently small value)
-//Get the point p2 by f(point + alpha * bitangent)
-//Get the point p3 by f(point - alpha * tangent)
-//Get the point p4 by f(point - alpha * bitangent)
-//Get your new normal by calculating cross(p2 - p4, p1 - p3) (might need to negate)
-
 }

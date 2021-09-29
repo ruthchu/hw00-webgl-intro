@@ -22,11 +22,8 @@ in vec4 fs_Nor;
 in vec4 fs_LightVec;
 in vec4 fs_Col;
 
-in float h;
-
 out vec4 out_Col; // This is the final output color that you will see on your
                   // screen for the pixel that is currently being processed.
-
 
 // Taken from cis460 sky shader (not sure where it came from originally)
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
@@ -115,13 +112,10 @@ float fbm(float nOctaves, vec3 pos) {
     return total;
 }
 
-
 float bias(float time, float bias)
 {
   return (time / ((((1.0/bias) - 2.0)*(1.0 - time))+1.0));
 }
-
-
 
 float gain(float time, float gain)
 {
@@ -133,26 +127,56 @@ float gain(float time, float gain)
   }
 }
 
+float waterNoise()
+{
+    float modTime = u_Time * .0001;
+    float waveNoise = snoise(vec3(fs_Pos.x + sin(modTime), fs_Pos.y + sin(modTime), fs_Pos.z + sin(modTime)) * 40.0);
+    return waveNoise;
+}
+
+float easeInQuint(float x)
+{
+    return x * x * x * x * x;
+}
 
 float height(vec3 value) 
 {
     // noise range is -1.338 to 1.3
     float baseNoise = (fbm(7.0, value) + 1.338) / 2.638; // fbm mapped from 0 to 1
-    baseNoise = gain(baseNoise, .8); // adds more flat land
+    baseNoise = gain(baseNoise, .8); // makes the peaks more dramatic
     float noiseVal = clamp(baseNoise, .5, 1.0); // takes everything below .5 and clamps it flat (water)
-
-    if (noiseVal > .55 && noiseVal < .65) {
-        noiseVal += abs(sin((noiseVal) / 100.0));
+    if (noiseVal > .501 && noiseVal < .525) {
+        noiseVal = mix(.501, .525, easeInQuint(smoothstep(.5, .525, noiseVal)));
     }
     return noiseVal;
+}
+
+float terrainIsWater(vec3 value)
+{
+    float noiseVal = height(value);
+    if (noiseVal == .5) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
+float waves(float val)
+{
+    float modTime = u_Time * .0001;
+    float colorBoi = snoise(vec3(fs_Pos.x + sin(modTime), fs_Pos.y + sin(modTime), fs_Pos.z + sin(modTime)) * 50.0);
+    if (colorBoi > 0.3 && colorBoi < 0.6) {
+        colorBoi = 1.0 * bias(smoothstep(0.4, 0.5, val), .3);
+    }
+    else {
+        colorBoi = 0.0;
+    }
+    return colorBoi;
 }
 
 const float DELTA = 1e-4;
 
 void main()
 {
-    
-
     vec3 mid_Nor = fs_Nor.xyz;
     vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), vec3(mid_Nor)));
     vec3 bitangent = cross(vec3(mid_Nor), tangent);
@@ -171,21 +195,45 @@ void main()
 
     // Material base color (before shading)
     vec4 diffuseColor = u_Color;
-    float baseNoise = (fbm(10.0, vec3(fs_Pos)) + 1.338) / 2.638; // fbm mapped from 0 to 1
-    if (baseNoise < 0.5) {
-        diffuseColor = vec4(102.0, 207.0, 255.0, 255.0) / 255.0;
+    float terrainColor = height(fs_Pos.xyz); // fbm mapped from 0 to 1
+    float isWater = terrainIsWater(fs_Pos.xyz);
+    
+    // WATER
+    if (isWater == 1.0) {
+        vec3 lightBlue = vec3(102.0, 207.0, 255.0);
+        vec3 darkBlue = vec3(46.0, 108.0, 217.0);
+        vec3 blue = mix(darkBlue, lightBlue, smoothstep(.2, .5, clamp((fbm(7.0, fs_Pos.xyz) + 1.338) / 2.638, .3, .5))); // interpolation of light to dark blue for the base water color
+       
+        float waveBound = (fbm(10.0, fs_Pos.xyz) + 1.338) / 2.638; // boundary for where the shoreline waves begin
+        float deepWaterWaves = waterNoise() + terrainColor; // boundary for what to color as deep water waves   
+       
+        if (waveBound < 0.5 && waveBound > 0.4) { // adds waves close to shoreline
+            float waveColor = waves(waveBound);
+            blue += vec3(waveColor * 255.0);
+        }
+        if (deepWaterWaves > 0.5 && deepWaterWaves < 0.6) { // adds fake waves to deeper water
+            blue += vec3(40.0);
+        }
+        diffuseColor = vec4(blue, 255.0) / 255.0;
     }
-    else if (baseNoise > 0.5 && baseNoise < .6) {
-        diffuseColor = vec4(240.0, 143.0, 255., 255.0) / 255.0;
-    }
+
+    // LAND
     else {
-        diffuseColor = vec4(189.0, 112.0, 230.0, 255.0) / 255.0;
-    }
+        if (terrainColor > 0.5 && terrainColor < .525) {
+            diffuseColor = vec4(230.0, 179.0, 39.0, 255.0) / 255.0;
+        }
+        else if (terrainColor > 0.5 && terrainColor < .6) {// PINK
+            diffuseColor = vec4(240.0, 143.0, 255., 255.0) / 255.0;
+        }
+        else {
+            diffuseColor = vec4(189.0, 112.0, 230.0, 255.0) / 255.0;
+        }
+    } 
     //out_Col = diffuseColor;
 
     float diffuseTerm = dot(normalize(final_Nor), normalize(fs_LightVec));
         // Avoid negative lighting values
-        // diffuseTerm = clamp(diffuseTerm, 0, 1);
+        diffuseTerm = clamp(diffuseTerm, 0.0, 1.0);
 
         float ambientTerm = 0.2;
 
@@ -194,6 +242,5 @@ void main()
                                                             //lit by our point light are not completely black.
 
         // Compute final shaded color
-        out_Col = vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a);//vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a);
-        
+        out_Col = vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a);//vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a); 
 }
