@@ -14,10 +14,12 @@ import Cube from './geometry/Cube';
 const controls = {
   tesselations: 5,
   'Load Scene': loadScene, // A function pointer, essentially
+  terrainFreq: 1,
+  cloudHeight: .9,
 };
 
 const palette = {
-  color: [ 0, 128, 255 ]
+  color: [ 163, 120, 191 ]
 };
 
 let icosphere: Icosphere;
@@ -48,6 +50,8 @@ function main() {
   const gui = new DAT.GUI();
   gui.add(controls, 'tesselations', 0, 8).step(1);
   gui.add(controls, 'Load Scene');
+  gui.add(controls, 'terrainFreq', 0, 2).step(.1);
+  gui.add(controls, 'cloudHeight', .6, 1.1).step(.05);
   gui.addColor(palette, 'color');
 
   // get canvas and webgl context
@@ -68,6 +72,10 @@ function main() {
   const renderer = new OpenGLRenderer(canvas);
   renderer.setClearColor(0.2, 0.2, 0.2, 1);
   gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.enable(gl.CULL_FACE);
+  gl.frontFace(gl.CW);
 
   const lambert = new ShaderProgram([
     new Shader(gl.VERTEX_SHADER, require('./shaders/lambert-vert.glsl')),
@@ -95,7 +103,6 @@ function main() {
     camera.update();
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     renderer.clear();
     if(controls.tesselations != prevTesselations)
@@ -111,15 +118,15 @@ function main() {
     ], vec4.fromValues(palette.color[0] / 255., 
       palette.color[1] / 255., 
       palette.color[2] / 255., 1), 
-      u_tick);
-    //renderer.render(camera, raymarch, [
-    //  //icosphere,
-    //  square,
-    //  //cube,
-    //], vec4.fromValues(palette.color[0] / 255., 
-    //  palette.color[1] / 255., 
-    //  palette.color[2] / 255., 1), 
-    //  u_tick);
+      u_tick, controls.terrainFreq, controls.cloudHeight);
+    renderer.render(camera, raymarch, [
+      icosphere,
+      //square,
+      //cube,
+    ], vec4.fromValues(palette.color[0] / 255., 
+      palette.color[1] / 255., 
+      palette.color[2] / 255., 1), 
+      u_tick, controls.terrainFreq, controls.cloudHeight);
 
     stats.end();
 

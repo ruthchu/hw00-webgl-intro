@@ -19,7 +19,7 @@ uniform mat4 u_ViewProj;    // The matrix that defines the camera's transformati
                             // We've written a static matrix for you to use for HW2,
                             // but in HW3 you'll have to generate one yourself
 uniform highp float u_Time;
-
+uniform float u_Terrain;
 
 in vec4 vs_Pos;             // The array of vertex positions passed to the shader
 
@@ -32,8 +32,6 @@ out vec4 fs_Pos;
 out vec4 fs_Nor;            // The array of normals that has been transformed by u_ModelInvTr. This is implicitly passed to the fragment shader.
 out vec4 fs_LightVec;       // The direction in which our virtual light lies, relative to each vertex. This is implicitly passed to the fragment shader.
 out vec4 fs_Col;            // The color of each vertex. This is implicitly passed to the fragment shader.
-
-out float h;
 
 const vec4 lightPos = vec4(5, 5, 3, 1); //The position of our virtual light, which is used to compute the shading of
                                         //the geometry in the fragment shader.
@@ -138,18 +136,50 @@ float gain(float time, float gain)
   else {
     return bias(time * 2.0 - 1.0,1.0 - gain)/2.0 + 0.5;
   }
+} 
+
+float easeInQuart(float x)
+{
+    return x * x * x * x;
 }
 
-float waterNoise()
-{
-    float modTime = u_Time * .001;
-    float waveNoise = snoise(vec3(fs_Pos.x + sin(modTime), fs_Pos.y + sin(modTime), fs_Pos.z + sin(modTime)) * 10.0);
-    return .01 * waveNoise;
+float easeOutQuart(float x) {
+  return 1.0 - pow(1.0 - x, 4.0);
 }
 
-float easeInQuint(float x)
-{
-    return x * x * x * x * x;
+// worley and hash taken from https://www.shadertoy.com/view/3d3fWN
+vec3 hash33(vec3 p3) {
+	vec3 p = fract(p3 * vec3(.1031,.11369,.13787));
+    p += dot(p, p.yxz+19.19);
+    return -1.0 + 2.0 * fract(vec3((p.x + p.y)*p.z, (p.x+p.z)*p.y, (p.y+p.z)*p.x));
+}
+
+float worley(vec3 p, float scale){
+    vec3 id = floor(p*scale);
+    vec3 fd = fract(p*scale);
+
+    float n = 0.;
+
+    float minimalDist = 1.;
+
+    for(float x = -1.; x <=1.; x++){
+        for(float y = -1.; y <=1.; y++){
+            for(float z = -1.; z <=1.; z++){
+
+                vec3 coord = vec3(x,y,z);
+                vec3 rId = hash33(mod(id+coord,scale))*0.5+0.5;
+
+                vec3 r = coord + rId - fd; 
+
+                float d = dot(r,r);
+
+                if(d < minimalDist){
+                    minimalDist = d;
+                }
+            }//z
+        }//y
+    }//x
+    return 1.0-minimalDist;
 }
 
 float height(vec3 value) 
@@ -158,8 +188,8 @@ float height(vec3 value)
     float baseNoise = (fbm(7.0, value) + 1.338) / 2.638; // fbm mapped from 0 to 1
     baseNoise = gain(baseNoise, .8); // makes the peaks more dramatic
     float noiseVal = clamp(baseNoise, .5, 1.0); // takes everything below .5 and clamps it flat (water)
-    if (noiseVal > .5 && noiseVal < .525) {
-        noiseVal = mix(.5, .525, easeInQuint(smoothstep(.5, .525, noiseVal)));
+    if (noiseVal > .5 && noiseVal < .525) { // coastline boundary
+        noiseVal = mix(.5, .525, easeInQuart(smoothstep(.5, .525, noiseVal)));
     }
     return noiseVal;
 }
@@ -178,8 +208,7 @@ void main()
                                                             // the model matrix.
     
  
-    float noiseHeight = height(vec3(fs_Pos));
-    h = noiseHeight;
+    float noiseHeight = height(vec3(fs_Pos * u_Terrain));
 
     vec4 noisedPos = noiseHeight * mid_Nor;
     vec4 modelposition = u_Model * vs_Pos;   // Temporarily store the transformed vertex positions for use below

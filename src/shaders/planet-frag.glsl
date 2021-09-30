@@ -13,6 +13,7 @@ precision highp float;
 
 uniform vec4 u_Color; // The color with which to render this instance of geometry.
 uniform highp float u_Time;
+uniform float u_Terrain;
 
 // These are the interpolated values out of the rasterizer, so you can't know
 // their specific values without knowing the vertices that contributed to them
@@ -127,37 +128,104 @@ float gain(float time, float gain)
   }
 }
 
-float waterNoise()
+float easeInQuart(float x)
 {
-    float modTime = u_Time * .0001;
-    float waveNoise = snoise(vec3(fs_Pos.x + sin(modTime), fs_Pos.y + sin(modTime), fs_Pos.z + sin(modTime)) * 40.0);
-    return waveNoise;
+    return x * x * x * x;
 }
 
-float easeInQuint(float x)
+float easeInOutCubic(float x)
 {
-    return x * x * x * x * x;
+  return x < 0.5 ? 4.0 * x * x * x : 1.0 - pow(-2.0 * x + 2.0, 3.0) / 2.0;
 }
 
-float height(vec3 value) 
-{
+vec3 hash33(vec3 p3) {
+	vec3 p = fract(p3 * vec3(.1031,.11369,.13787));
+    p += dot(p, p.yxz+19.19);
+    return -1.0 + 2.0 * fract(vec3((p.x + p.y)*p.z, (p.x+p.z)*p.y, (p.y+p.z)*p.x));
+}
+
+float worley(vec3 p, float scale){
+
+    vec3 id = floor(p*scale);
+    vec3 fd = fract(p*scale);
+
+    float n = 0.;
+
+    float minimalDist = 1.;
+
+
+    for(float x = -1.; x <=1.; x++){
+        for(float y = -1.; y <=1.; y++){
+            for(float z = -1.; z <=1.; z++){
+
+                vec3 coord = vec3(x,y,z);
+                vec3 rId = hash33(mod(id+coord,scale))*0.5+0.5;
+
+                vec3 r = coord + rId - fd; 
+
+                float d = dot(r,r);
+
+                if(d < minimalDist){
+                    minimalDist = d;
+                }
+
+            }//z
+        }//y
+    }//x
+    
+    return 1.0-minimalDist;
+}
+
+vec2 height(vec3 value) 
+{   
+    value *= u_Terrain; 
     // noise range is -1.338 to 1.3
+    float terrainType = 0.0; // DEFAULT
     float baseNoise = (fbm(7.0, value) + 1.338) / 2.638; // fbm mapped from 0 to 1
     baseNoise = gain(baseNoise, .8); // makes the peaks more dramatic
     float noiseVal = clamp(baseNoise, .5, 1.0); // takes everything below .5 and clamps it flat (water)
-    if (noiseVal > .501 && noiseVal < .525) {
-        noiseVal = mix(.501, .525, easeInQuint(smoothstep(.5, .525, noiseVal)));
+    if (noiseVal <= .5) {
+        terrainType = 3.0; //WATERRRR
     }
-    return noiseVal;
+    if (noiseVal > .5 && noiseVal < .525) {
+        noiseVal = mix(.5, .525, easeInQuart(smoothstep(.5, .525, noiseVal)));
+        terrainType = 1.0;// COASTLINE
+    }
+    return vec2(noiseVal, terrainType);
 }
 
-float terrainIsWater(vec3 value)
+const float DELTA = 1e-4;
+
+vec4 calcNewNor(vec3 oldNor) {
+    vec3 mid_Nor = oldNor;
+    vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), vec3(mid_Nor)));
+    vec3 bitangent = cross(vec3(mid_Nor), tangent);
+
+    float px = height(fs_Pos.xyz + DELTA * tangent).x;
+    float nx = height(fs_Pos.xyz - DELTA * tangent).x;
+    float py = height(fs_Pos.xyz + DELTA * bitangent).x;
+    float ny = height(fs_Pos.xyz - DELTA * bitangent).x;
+
+    vec3 p1 = fs_Pos.xyz + DELTA * tangent + px * mid_Nor.xyz;
+    vec3 p2 = fs_Pos.xyz + DELTA * bitangent + py * mid_Nor.xyz;
+    vec3 p3 = fs_Pos.xyz - DELTA * tangent + nx * mid_Nor.xyz;
+    vec3 p4 = fs_Pos.xyz - DELTA * bitangent + ny * mid_Nor.xyz;
+
+    return vec4(normalize(cross(normalize(p1 - p3), normalize(p2 - p4))), 0.0);
+}
+
+float waterNoise(float boundary)
 {
-    float noiseVal = height(value);
-    if (noiseVal == .5) {
-        return 1.0;
+    float modTime = u_Time * .0001;
+    vec3 movedVal = (fs_Pos.xyz + 1.0) / 2.0;
+    float waveNoise;
+    if (boundary < .28) {
+        waveNoise = snoise(vec3(movedVal.x * 2.3 - sin(modTime), movedVal.y * 11.0, movedVal.z + sin(modTime)) * 10.0);
     }
-    return 0.0;
+    else {
+        waveNoise = snoise(vec3(movedVal.x, movedVal.y * 30.0 + sin(modTime), movedVal.z + sin(modTime)) * 40.0);
+    }
+    return waveNoise;
 }
 
 float waves(float val)
@@ -173,64 +241,48 @@ float waves(float val)
     return colorBoi;
 }
 
-const float DELTA = 1e-4;
-
 void main()
 {
-    vec3 mid_Nor = fs_Nor.xyz;
-    vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), vec3(mid_Nor)));
-    vec3 bitangent = cross(vec3(mid_Nor), tangent);
-
-    float px = height(fs_Pos.xyz + DELTA * tangent);
-    float nx = height(fs_Pos.xyz - DELTA * tangent);
-    float py = height(fs_Pos.xyz + DELTA * bitangent);
-    float ny = height(fs_Pos.xyz - DELTA * bitangent);
-
-    vec3 p1 = fs_Pos.xyz + DELTA * tangent + px * mid_Nor.xyz;
-    vec3 p2 = fs_Pos.xyz + DELTA * bitangent + py * mid_Nor.xyz;
-    vec3 p3 = fs_Pos.xyz - DELTA * tangent + nx * mid_Nor.xyz;
-    vec3 p4 = fs_Pos.xyz - DELTA * bitangent + ny * mid_Nor.xyz;
-
-    vec4 final_Nor = vec4(normalize(cross(normalize(p1 - p3), normalize(p2 - p4))), 0.0);
-
+    vec4 final_Nor = calcNewNor(fs_Nor.xyz);
+   
     // Material base color (before shading)
-    vec4 diffuseColor = u_Color;
-    float terrainColor = height(fs_Pos.xyz); // fbm mapped from 0 to 1
-    float isWater = terrainIsWater(fs_Pos.xyz);
+    vec4 diffuseColor = vec4(1.0);
+    vec2 terrainColor = height(fs_Pos.xyz); // fbm mapped from 0 to 1
     
     // WATER
-    if (isWater == 1.0) {
-        vec3 lightBlue = vec3(102.0, 207.0, 255.0);
-        vec3 darkBlue = vec3(46.0, 108.0, 217.0);
-        vec3 blue = mix(darkBlue, lightBlue, smoothstep(.2, .5, clamp((fbm(7.0, fs_Pos.xyz) + 1.338) / 2.638, .3, .5))); // interpolation of light to dark blue for the base water color
+    if (terrainColor.y == 3.0) {
+        vec3 lightBlue = vec3(102.0, 207.0, 255.0) / 255.0;
+        vec3 darkBlue = vec3(46.0, 108.0, 217.0) / 255.0;
+        vec3 blue = mix(darkBlue, lightBlue, smoothstep(.2, .5, clamp((fbm(7.0, fs_Pos.xyz * u_Terrain) + 1.338) / 2.638, .3, .5))); // interpolation of light to dark blue for the base water color
        
-        float waveBound = (fbm(10.0, fs_Pos.xyz) + 1.338) / 2.638; // boundary for where the shoreline waves begin
-        float deepWaterWaves = waterNoise() + terrainColor; // boundary for what to color as deep water waves   
+        float waveBound = (fbm(10.0, fs_Pos.xyz * u_Terrain) + 1.338) / 2.638; // boundary for where the shoreline waves begin
+        float deepWaterBound = (fbm(7.0, fs_Pos.xyz * u_Terrain) + 1.338) / 2.638; // clamp wave bound
+        float deepWaterWaves = waterNoise(deepWaterBound) + terrainColor.x; // boundary for what to color as deep water waves   
        
-        if (waveBound < 0.5 && waveBound > 0.4) { // adds waves close to shoreline
+        if (waveBound < 0.5 && waveBound > 0.35) { // adds waves close to shoreline
             float waveColor = waves(waveBound);
-            blue += vec3(waveColor * 255.0);
+            blue += vec3(waveColor);
+        }
+        if (waveBound > .49) {
+            blue += vec3(.75);
         }
         if (deepWaterWaves > 0.5 && deepWaterWaves < 0.6) { // adds fake waves to deeper water
-            blue += vec3(40.0);
+            blue += vec3(.3);
         }
-        diffuseColor = vec4(blue, 255.0) / 255.0;
+        diffuseColor = vec4(blue, 1.0);
     }
 
     // LAND
     else {
-        if (terrainColor > 0.5 && terrainColor < .525) {
-            diffuseColor = vec4(230.0, 179.0, 39.0, 255.0) / 255.0;
-        }
-        else if (terrainColor > 0.5 && terrainColor < .6) {// PINK
-            diffuseColor = vec4(240.0, 143.0, 255., 255.0) / 255.0;
+        if (terrainColor.x < .51) { // COASTLINE
+                vec3 yellow = vec3(230.0, 218.0, 170.0) / 255.0;
+                vec3 pink = vec3(235.0, 227.0, 195.0) / 255.0;
+                diffuseColor = vec4(mix(yellow, pink, smoothstep(.3, .5, terrainColor.x)), 1.0);
         }
         else {
-            diffuseColor = vec4(189.0, 112.0, 230.0, 255.0) / 255.0;
+            diffuseColor = vec4(vec3(u_Color), 1.0);
         }
     } 
-    //out_Col = diffuseColor;
-
     float diffuseTerm = dot(normalize(final_Nor), normalize(fs_LightVec));
         // Avoid negative lighting values
         diffuseTerm = clamp(diffuseTerm, 0.0, 1.0);
@@ -242,5 +294,5 @@ void main()
                                                             //lit by our point light are not completely black.
 
         // Compute final shaded color
-        out_Col = vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a);//vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a); 
+    out_Col = vec4(diffuseColor.rgb * lightIntensity, diffuseColor.a); 
 }

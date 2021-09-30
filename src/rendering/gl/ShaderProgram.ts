@@ -30,6 +30,8 @@ class ShaderProgram {
   unifViewProj: WebGLUniformLocation;
   unifColor: WebGLUniformLocation;
   unifTime: WebGLUniformLocation;
+  unifTerrain: WebGLUniformLocation;
+  unifCloud: WebGLUniformLocation;
 
   constructor(shaders: Array<Shader>) {
     this.prog = gl.createProgram();
@@ -50,6 +52,8 @@ class ShaderProgram {
     this.unifViewProj   = gl.getUniformLocation(this.prog, "u_ViewProj");
     this.unifColor      = gl.getUniformLocation(this.prog, "u_Color");
     this.unifTime       = gl.getUniformLocation(this.prog, "u_Time");
+    this.unifTerrain    = gl.getUniformLocation(this.prog, "u_Terrain");
+    this.unifCloud      = gl.getUniformLocation(this.prog, "u_Cloud");
   }
 
   use() {
@@ -91,6 +95,20 @@ class ShaderProgram {
     this.use();
     if (this.unifColor !== -1) {
       gl.uniform4fv(this.unifColor, color);
+    }
+  }
+
+  setTerrain(terrain: number) {
+    this.use();
+    if (this.unifColor !== -1) {
+      gl.uniform1f(this.unifTerrain, terrain);
+    }
+  }
+
+  setCloud(cloud: number) {
+    this.use();
+    if (this.unifColor !== -1) {
+      gl.uniform1f(this.unifCloud, cloud);
     }
   }
 
